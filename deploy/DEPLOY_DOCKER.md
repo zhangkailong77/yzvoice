@@ -27,7 +27,7 @@ These files are mounted in the frontend container at:
 Set frontend public API origin to your HTTPS domain (port 4006) and start:
 
 ```bash
-export VITE_API_ORIGIN=https://lipsync.ybystds.com:4006
+export VITE_API_ORIGIN=https://demo.ybystds.com:4006
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
@@ -41,16 +41,16 @@ docker compose -f docker-compose.prod.yml logs -f frontend
 
 ## 5. Verify endpoints
 
-- Frontend: `https://lipsync.ybystds.com:4006`
-- Backend docs: `https://lipsync.ybystds.com:4006/api/docs` (proxied to backend)
-- Generated files: `https://lipsync.ybystds.com:4006/files/<filename>`
-- Health check: `https://lipsync.ybystds.com:4006/health`
+- Frontend: `https://demo.ybystds.com:4006`
+- Backend docs: `https://demo.ybystds.com:4006/api/docs` (proxied to backend)
+- Generated files: `https://demo.ybystds.com:4006/files/<filename>`
+- Health check: `https://demo.ybystds.com:4006/health`
 
 ## 6. Update process
 
 ```bash
 git pull
-export VITE_API_ORIGIN=https://lipsync.ybystds.com:4006
+export VITE_API_ORIGIN=https://demo.ybystds.com:4006
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 

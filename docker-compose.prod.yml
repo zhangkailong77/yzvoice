@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://lipsync.ybystds.com:4006}
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://demo.ybystds.com:4006}
     container_name: voice-frontend
     restart: unless-stopped
     depends_on:
