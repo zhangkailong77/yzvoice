@@ -87,6 +87,22 @@ const Step1Upload: React.FC<Step1Props> = ({
     return `无法访问摄像头（${error.name}）。`;
   };
 
+  const getCameraSupportError = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return '当前环境不支持摄像头访问。';
+    }
+
+    if (!window.isSecureContext) {
+      return '当前页面不是安全上下文（需 HTTPS 或 localhost），无法访问摄像头。';
+    }
+
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      return '当前浏览器或页面权限策略不支持摄像头访问（mediaDevices 不可用）。';
+    }
+
+    return null;
+  };
+
   const openCamera = async () => {
     setCameraError(null);
     setPreviewError(null);
@@ -95,6 +111,12 @@ const Step1Upload: React.FC<Step1Props> = ({
     if (recordedUrl) {
       URL.revokeObjectURL(recordedUrl);
       setRecordedUrl(null);
+    }
+
+    const supportError = getCameraSupportError();
+    if (supportError) {
+      setCameraError(supportError);
+      return;
     }
 
     try {

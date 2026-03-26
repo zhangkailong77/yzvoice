@@ -17,13 +17,15 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_ORIGIN: http://112.124.32.196:4006
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-https://lipsync.ybystds.com:4006}
     container_name: voice-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "4006:80"
+      - "4006:443"
+    volumes:
+      - ./deploy/certs:/etc/nginx/certs:ro
     networks:
       - voice-net
 

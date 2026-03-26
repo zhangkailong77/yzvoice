@@ -15,3 +15,6 @@ dist/
 # Env / deployment secrets
 backend/.env.production
 backend/.env
+deploy/certs/*.pem
+deploy/certs/*.key
+deploy/certs/*.crt
