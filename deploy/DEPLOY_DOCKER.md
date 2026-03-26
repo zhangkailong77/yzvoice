@@ -17,6 +17,11 @@ Put certificate files in `deploy/certs/`:
 
 If your certificate files from Alibaba Cloud have different names, rename them to the two names above.
 
+These files are mounted in the frontend container at:
+
+- `/etc/nginx/ssl/fullchain.pem`
+- `/etc/nginx/ssl/privkey.pem`
+
 ## 3. Build and start
 
 Set frontend public API origin to your HTTPS domain (port 4006) and start:
@@ -39,6 +44,7 @@ docker compose -f docker-compose.prod.yml logs -f frontend
 - Frontend: `https://lipsync.ybystds.com:4006`
 - Backend docs: `https://lipsync.ybystds.com:4006/api/docs` (proxied to backend)
 - Generated files: `https://lipsync.ybystds.com:4006/files/<filename>`
+- Health check: `https://lipsync.ybystds.com:4006/health`
 
 ## 6. Update process
 

@@ -25,7 +25,7 @@ services:
     ports:
       - "4006:443"
     volumes:
-      - ./deploy/certs:/etc/nginx/certs:ro
+      - ./deploy/certs:/etc/nginx/ssl:ro
     networks:
       - voice-net
 
