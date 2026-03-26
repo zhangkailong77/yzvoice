@@ -147,7 +147,14 @@ const App: React.FC = () => {
       setToast({ msg: '视频上传成功', type: 'success' });
     } catch (error) {
       console.error(error);
-      setToast({ msg: '视频上传失败', type: 'error' });
+      let errMsg = '视频上传失败';
+      if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        if (typeof detail === 'string' && detail.trim()) {
+          errMsg = `视频上传失败：${detail}`;
+        }
+      }
+      setToast({ msg: errMsg, type: 'error' });
       setState(s => ({ ...s, isProcessing: false, processingStage: '' }));
     }
   };

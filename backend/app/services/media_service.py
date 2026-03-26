@@ -1,5 +1,6 @@
 import os
 import uuid
+import subprocess
 import moviepy.editor as mpe
 from app.core.config import settings
 
@@ -16,9 +17,35 @@ def normalize_video_to_mp4(video_path: str) -> str:
     if extension == ".mp4":
         return video_path
 
-    video_clip = None
     target_path = os.path.splitext(video_path)[0] + ".mp4"
 
+    # Prefer direct ffmpeg conversion first. It is more robust for browser-recorded webm/mp4 variants.
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                video_path,
+                "-c:v",
+                "libx264",
+                "-c:a",
+                "aac",
+                target_path,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+
+        if os.path.exists(video_path):
+            os.remove(video_path)
+        print(f"Converted video to MP4: {target_path}")
+        return target_path
+    except Exception as e:
+        print(f"ffmpeg conversion failed, fallback to moviepy: {e}")
+
+    video_clip = None
     try:
         video_clip = mpe.VideoFileClip(video_path)
         video_clip.write_videofile(
@@ -28,11 +55,9 @@ def normalize_video_to_mp4(video_path: str) -> str:
             verbose=False,
             logger=None,
         )
-
         if os.path.exists(video_path):
             os.remove(video_path)
-
-        print(f"Converted video to MP4: {target_path}")
+        print(f"Converted video to MP4 via moviepy: {target_path}")
         return target_path
     except Exception as e:
         print(f"Error converting video to MP4: {e}")
