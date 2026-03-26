@@ -10,14 +10,12 @@ Fill `backend/.env.production` with your real API keys.
 
 ## 2. Prepare HTTPS certificates
 
-Put certificate files in `deploy/certs/`:
+This compose file mounts host certificates from `/root/ssl`:
 
-- `deploy/certs/fullchain.pem`
-- `deploy/certs/privkey.pem`
+- `/root/ssl/fullchain.pem`
+- `/root/ssl/privkey.pem`
 
-If your certificate files from Alibaba Cloud have different names, rename them to the two names above.
-
-These files are mounted in the frontend container at:
+Container paths:
 
 - `/etc/nginx/ssl/fullchain.pem`
 - `/etc/nginx/ssl/privkey.pem`
