@@ -24,9 +24,9 @@ docker compose -f docker-compose.prod.yml logs -f frontend
 
 ## 4. Verify endpoints
 
-- Frontend: `http://112.124.32.196`
-- Backend docs: `http://112.124.32.196/api/docs` (proxied to backend)
-- Generated files: `http://112.124.32.196/files/<filename>`
+- Frontend: `http://112.124.32.196:4006`
+- Backend docs: `http://112.124.32.196:4006/api/docs` (proxied to backend)
+- Generated files: `http://112.124.32.196:4006/files/<filename>`
 
 ## 5. Update process
 

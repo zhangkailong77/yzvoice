@@ -17,13 +17,13 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_ORIGIN: http://112.124.32.196
+        VITE_API_ORIGIN: http://112.124.32.196:4006
     container_name: voice-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "4006:80"
     networks:
       - voice-net
 
