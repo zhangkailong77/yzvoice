@@ -107,13 +107,18 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', updateScale);
   }, []);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 1000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   const handleSaveKeys = (stt: string, mini: string) => {
     localStorage.setItem('G_SYNC_STT_KEY', stt);
     localStorage.setItem('G_SYNC_MINI_KEY', mini);
     setState(s => ({ ...s, apiKeyStt: stt, apiKeyMinimax: mini }));
     setShowKeyModal(false);
     setToast({ msg: 'API 密钥已更新', type: 'success' });
-    setTimeout(() => setToast(null), 3000);
   };
 
   // --- Logic Handlers (Same logic, triggered from different UI points) ---

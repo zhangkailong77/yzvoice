@@ -10,9 +10,9 @@ load_dotenv(BACKEND_ROOT / ".env")
 
 class Settings:
     # API Keys
-    STT_API_KEY = "sk-sfdmpvgqaudzbcgxyxyrtdewjdmlupusemjhfvhzwsitqjum"
-    MINIMAX_GROUP_ID = "1922837262983238024"
-    MINIMAX_API_KEY = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiLlvKDmpbfpvpkiLCJVc2VyTmFtZSI6IuW8oOalt-m-mSIsIkFjY291bnQiOiIiLCJTdWJqZWN0SUQiOiIxOTIyODM3MjYyOTkxNjI2NjMyIiwiUGhvbmUiOiIxODI1MDYzNjg2NSIsIkdyb3VwSUQiOiIxOTIyODM3MjYyOTgzMjM4MDI0IiwiUGFnZU5hbWUiOiIiLCJNYWlsIjoiIiwiQ3JlYXRlVGltZSI6IjIwMjUtMDUtMjIgMDk6NTE6MjMiLCJUb2tlblR5cGUiOjEsImlzcyI6Im1pbmltYXgifQ.W2mdcOc1JIpP50aKJ95BXIU21K2X-Ivat04t1cY50dvneTw0KsrK2gjm3Pu0Pvb0eqkw8BGRmD4_NZY4L1DgA1nkWjprOZUWQpqiTShR_HKil-Ku4jYskAmdZpyALPyE1FjRPIR_DQIHTsVxHFCJ9VA_ViqaQbgrnsePmtdddVTC5mWKkf5IcO5XwMduQ03EibeuH3a0srbxZ0bfL5mMxKD_ADD2BXUURLTNc8AAjW_-IoOPR29rJBZ-kJWTdc5L83ldAoWVdQfCikX9bcoPuMq1pWYghSvyVwAhdtmuIfrzHVA2smpI0PP9a0gKlrTijSLtN5bf6krTVRAGe5wuIQ"
+    STT_API_KEY = os.getenv("STT_API_KEY", "")
+    MINIMAX_GROUP_ID = os.getenv("MINIMAX_GROUP_ID", "")
+    MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
     
     # URLs
     LIPSYNC_API_URL = "http://192.168.150.2:7860"
@@ -26,6 +26,7 @@ class Settings:
     PIXVERSE_POLL_TIMEOUT_SECONDS = int(os.getenv("PIXVERSE_POLL_TIMEOUT_SECONDS", "300"))
     PIXVERSE_HTTP_RETRIES = int(os.getenv("PIXVERSE_HTTP_RETRIES", "5"))
     PIXVERSE_HTTP_BACKOFF_SECONDS = float(os.getenv("PIXVERSE_HTTP_BACKOFF_SECONDS", "1.0"))
+    CORS_ALLOW_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
 
     # Paths
     BASE_DIR = os.getcwd()

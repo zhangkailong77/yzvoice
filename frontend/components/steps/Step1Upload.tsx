@@ -311,7 +311,7 @@ const Step1Upload: React.FC<Step1Props> = ({
       <p className="text-lg font-medium text-gray-700">点击或拖拽上传视频</p>
       <p className="text-sm text-gray-400 mt-2">支持 MP4, MOV, WEBM (最大 500MB)</p>
 
-      <button
+      {/* <button
         onClick={(e) => {
           e.stopPropagation();
           openCamera();
@@ -320,7 +320,7 @@ const Step1Upload: React.FC<Step1Props> = ({
       >
         <Camera className="w-4 h-4" />
         直接拍摄视频
-      </button>
+      </button> */}
 
       {cameraError && <p className="text-xs text-red-500 mt-3">{cameraError}</p>}
     </div>

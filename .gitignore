@@ -12,3 +12,6 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Env / deployment secrets
+backend/.env.production
+backend/.env
