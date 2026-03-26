@@ -42,7 +42,7 @@ const Step2Script: React.FC<Step2Props> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-3 h-full min-h-0 items-stretch">
+      <div className="flex-1 flex flex-row gap-3 h-full min-h-0 items-stretch">
         {/* Source Text */}
         <div className="flex-1 flex flex-col h-full min-h-[200px]">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">原文 (中文)</label>
@@ -55,7 +55,7 @@ const Step2Script: React.FC<Step2Props> = ({
         </div>
 
         {/* Center Action Button */}
-        <div className="flex items-center justify-center flex-shrink-0 md:px-0 py-2 md:py-0">
+        <div className="flex items-center justify-center flex-shrink-0 px-0 py-0">
           <button
             onClick={onTranslate}
             disabled={!sourceText || isProcessing}

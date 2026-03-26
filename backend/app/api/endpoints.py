@@ -4,7 +4,7 @@ from app.schemas.video import (
     STTResponse, TranslationRequest, TranslationResponse, 
     TTSRequest, TTSResponse, LipSyncRequest, LipSyncResponse
 )
-from app.services.media_service import extract_audio_from_video, convert_mp3_to_wav
+from app.services.media_service import extract_audio_from_video, convert_mp3_to_wav, normalize_video_to_mp4
 from app.services.ai_service import (
     call_stt_api, call_translation_api, call_tts_api, call_lipsync_api, call_indextts_api
 )
@@ -18,14 +18,21 @@ router = APIRouter()
 @router.post("/upload", summary="Upload a video file")
 async def upload_video(file: UploadFile = File(...)):
     try:
-        file_extension = os.path.splitext(file.filename)[1]
+        file_extension = os.path.splitext(file.filename or "")[1].lower()
+        if not file_extension:
+            file_extension = ".mp4"
+
         file_name = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(settings.TEMP_DIR, file_name)
         
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        return {"file_path": file_path, "filename": file_name}
+
+        # Ensure a unified MP4 format for downstream processing.
+        normalized_path = normalize_video_to_mp4(file_path)
+        normalized_name = os.path.basename(normalized_path)
+
+        return {"file_path": normalized_path, "filename": normalized_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -108,5 +115,7 @@ async def generate_lipsync(request: LipSyncRequest):
             request.seed
         )
         return LipSyncResponse(video_path=video_path)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,5 +1,12 @@
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load backend/.env explicitly so runtime always picks local config.
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(BACKEND_ROOT / ".env")
 
 class Settings:
     # API Keys
@@ -13,6 +20,12 @@ class Settings:
     SILICONFLOW_CHAT_URL = "https://api.siliconflow.cn/v1/chat/completions"
     MINIMAX_TTS_URL = "https://api.minimax.chat/v1/t2a_v2"
     INDEXTTS_API_URL = "http://localhost:8001/api/clone"
+    PIXVERSE_API_BASE_URL = os.getenv("PIXVERSE_API_BASE_URL", "https://app-api.pixverse.ai")
+    PIXVERSE_API_KEY = os.getenv("PIXVERSE_API_KEY", "")
+    PIXVERSE_POLL_INTERVAL_SECONDS = float(os.getenv("PIXVERSE_POLL_INTERVAL_SECONDS", "5"))
+    PIXVERSE_POLL_TIMEOUT_SECONDS = int(os.getenv("PIXVERSE_POLL_TIMEOUT_SECONDS", "300"))
+    PIXVERSE_HTTP_RETRIES = int(os.getenv("PIXVERSE_HTTP_RETRIES", "5"))
+    PIXVERSE_HTTP_BACKOFF_SECONDS = float(os.getenv("PIXVERSE_HTTP_BACKOFF_SECONDS", "1.0"))
 
     # Paths
     BASE_DIR = os.getcwd()
@@ -37,6 +50,7 @@ class Settings:
         "英语": "English",
         "日语": "Japanese",
         "韩语": "Korean",
+        "马来语": "Malay",
         "越南语": "Vietnamese",
         "俄语": "Russian",
         "法语": "French",

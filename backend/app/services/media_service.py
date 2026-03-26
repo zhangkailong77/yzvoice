@@ -3,6 +3,44 @@ import uuid
 import moviepy.editor as mpe
 from app.core.config import settings
 
+
+def normalize_video_to_mp4(video_path: str) -> str:
+    """
+    Normalize uploaded video to MP4 (H.264/AAC) for downstream compatibility.
+    Returns MP4 path. If already mp4, returns the original path.
+    """
+    if not video_path or not os.path.exists(video_path):
+        raise FileNotFoundError("Video file not found")
+
+    extension = os.path.splitext(video_path)[1].lower()
+    if extension == ".mp4":
+        return video_path
+
+    video_clip = None
+    target_path = os.path.splitext(video_path)[0] + ".mp4"
+
+    try:
+        video_clip = mpe.VideoFileClip(video_path)
+        video_clip.write_videofile(
+            target_path,
+            codec="libx264",
+            audio_codec="aac",
+            verbose=False,
+            logger=None,
+        )
+
+        if os.path.exists(video_path):
+            os.remove(video_path)
+
+        print(f"Converted video to MP4: {target_path}")
+        return target_path
+    except Exception as e:
+        print(f"Error converting video to MP4: {e}")
+        raise e
+    finally:
+        if video_clip:
+            video_clip.close()
+
 def extract_audio_from_video(video_path: str) -> str:
     """
     Extract audio from video and save as mp3.

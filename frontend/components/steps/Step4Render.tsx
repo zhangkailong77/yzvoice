@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ProcessingLog } from '../../types';
-import { ChevronDown, ChevronUp, Download, Zap, CheckCircle2, Circle, Clock, Play, ArrowUpRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2, Circle, Clock, Play, ArrowUpRight, Loader2 } from 'lucide-react';
 
 interface Step4Props {
   isProcessing: boolean;
@@ -8,6 +8,8 @@ interface Step4Props {
   onStartRender: () => void;
   originalVideoUrl: string | null;
   finalVideoUrl: string | null;
+  elapsedSeconds: number;
+  lastDurationSeconds: number | null;
 }
 
 const Step4Render: React.FC<Step4Props> = ({
@@ -15,14 +17,17 @@ const Step4Render: React.FC<Step4Props> = ({
   logs,
   onStartRender,
   originalVideoUrl,
-  finalVideoUrl
+  finalVideoUrl,
+  elapsedSeconds,
+  lastDurationSeconds
 }) => {
   const [showLogs, setShowLogs] = useState(true);
+  const canStartRender = !!originalVideoUrl;
 
   // 1. Success State (Finished)
   if (finalVideoUrl) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4">
+      <div className="grid grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4">
          <div className="space-y-4">
              <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -33,6 +38,9 @@ const Step4Render: React.FC<Step4Props> = ({
                   合成成功
                 </span>
              </div>
+             {lastDurationSeconds !== null && (
+               <div className="text-xs text-gray-500">本次耗时：{lastDurationSeconds.toFixed(1)}s</div>
+             )}
              <div className="aspect-video bg-black rounded-xl shadow-lg overflow-hidden ring-1 ring-black/5 relative group">
                <video src={finalVideoUrl} controls className="w-full h-full" />
              </div>
@@ -45,14 +53,16 @@ const Step4Render: React.FC<Step4Props> = ({
                 您的视频已完成唇形同步与配音替换。AI 模型已自动调整画面中的面部特征以匹配新的语音。
               </p>
             </div>
-            
-            <div className="flex flex-col space-y-3">
-              <button className="w-full py-3.5 bg-gray-900 text-white rounded-xl shadow-lg hover:bg-gray-800 transition-all font-medium flex items-center justify-center space-x-2 group">
-                 <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                 <span>下载高清视频 (1080P)</span>
-              </button>
-              <button className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium">
-                 导出字幕文件 (.SRT)
+
+            <div className="w-full">
+              <button
+                type="button"
+                onClick={onStartRender}
+                disabled={!originalVideoUrl}
+                className="group flex items-center justify-center gap-2 bg-primary-600 border border-primary-600 text-white px-8 py-3 rounded-full font-semibold transition-all shadow-sm hover:shadow-md hover:bg-primary-700 hover:border-primary-700 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-primary-600 disabled:hover:border-primary-600"
+              >
+                <span>重新生成</span>
+                <ArrowUpRight className="w-4 h-4 text-white/90 group-hover:text-white transition-colors" />
               </button>
             </div>
          </div>
@@ -75,7 +85,7 @@ const Step4Render: React.FC<Step4Props> = ({
             </div>
             <div className="flex items-center text-xs text-gray-400 font-mono gap-2">
               <Clock className="w-3 h-3" />
-              <span>EST: 30s</span>
+              <span>已用时: {elapsedSeconds.toFixed(1)}s</span>
             </div>
         </div>
         
@@ -104,15 +114,15 @@ const Step4Render: React.FC<Step4Props> = ({
 
   // 3. Ready State (Design match)
   return (
-    <div className="w-full bg-gray-50/50 rounded-2xl p-6 md:p-10 flex flex-col md:flex-row items-center gap-8 md:gap-16 relative overflow-hidden border border-gray-100 transition-all hover:bg-white hover:shadow-soft group">
+    <div className="w-full bg-gray-50/50 rounded-2xl p-10 flex flex-row items-center gap-16 relative overflow-hidden border border-gray-100 transition-all hover:bg-white hover:shadow-soft group">
       
       {/* Visuals (Left) - Mimicking the Pill Design */}
       <div className="relative w-64 h-32 flex-shrink-0 select-none transform transition-transform duration-500 group-hover:scale-105">
           {/* Background Decorations */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-violet-100/30 to-teal-100/30 rounded-full blur-2xl transform rotate-12 scale-125 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary-100/30 to-cyan-100/30 rounded-full blur-2xl transform rotate-12 scale-125 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
           {/* Pill 1: Original (Purple) */}
-          <div className="absolute top-0 left-0 bg-[#A78BFA] text-white pl-5 pr-2 py-3 rounded-full flex items-center gap-3 shadow-lg transform -rotate-6 transition-transform group-hover:-rotate-12 group-hover:-translate-y-2 z-10 w-40 border border-white/20">
+          <div className="absolute top-0 left-0 bg-[#60A5FA] text-white pl-5 pr-2 py-3 rounded-full flex items-center gap-3 shadow-lg transform -rotate-6 transition-transform group-hover:-rotate-12 group-hover:-translate-y-2 z-10 w-40 border border-white/20">
               <span className="font-bold text-sm tracking-wide text-shadow-sm">原始视频</span>
               <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center ml-auto shadow-inner">
                 <Play className="w-3.5 h-3.5 text-black fill-current ml-0.5" />
@@ -129,25 +139,32 @@ const Step4Render: React.FC<Step4Props> = ({
       </div>
 
       {/* Content (Middle) */}
-      <div className="flex-1 text-center md:text-left space-y-3 z-10">
-          <h3 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
+      <div className="flex-1 text-left space-y-3 z-10">
+          <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
             视频合成
           </h3>
-          <p className="text-gray-500 text-sm md:text-base leading-relaxed">
+          <p className="text-gray-500 text-base leading-relaxed">
             一键融合画面与生成的语音，AI 自动调整口型，消除语言违和感，快速生成母语级视频。
           </p>
       </div>
 
       {/* Button (Right) */}
       <div className="flex-shrink-0 z-10">
-          <button 
+        <div className="relative">
+          <span
+            className={`pointer-events-none absolute -inset-1 rounded-full bg-primary-500/40 blur-md transition-opacity ${
+              canStartRender ? '[animation:pulse_1.8s_ease-in-out_infinite] opacity-100' : 'opacity-0'
+            }`}
+          />
+          <button
             onClick={onStartRender}
-            disabled={!originalVideoUrl}
-            className="group flex items-center gap-2 bg-white border border-gray-200 text-gray-900 px-8 py-3 rounded-full font-semibold transition-all shadow-sm hover:shadow-md hover:border-gray-900 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:border-gray-200"
+            disabled={!canStartRender}
+            className="relative group flex items-center gap-2 bg-primary-600 border border-primary-600 text-white px-8 py-3 rounded-full font-semibold transition-all shadow-md shadow-primary-300/50 hover:shadow-lg hover:shadow-primary-300/60 hover:bg-primary-700 hover:border-primary-700 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 disabled:hover:bg-primary-600 disabled:hover:border-primary-600"
           >
             <span>开始合成</span>
-            <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-gray-900 transition-colors" />
+            <ArrowUpRight className="w-4 h-4 text-white/90 group-hover:text-white transition-colors" />
           </button>
+        </div>
       </div>
 
     </div>

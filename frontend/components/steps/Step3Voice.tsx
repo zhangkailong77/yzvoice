@@ -318,7 +318,7 @@ const Step3Voice: React.FC<Step3Props> = ({
 }) => {
   return (
     <div className="flex flex-col gap-6">
-      {/* Mode Toggle Tabs */}
+      {/* Mode Toggle Tabs (clone tab hidden) */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
         <button
           onClick={() => setIsCloneMode && setIsCloneMode(false)}
@@ -326,27 +326,12 @@ const Step3Voice: React.FC<Step3Props> = ({
         >
           预设音色
         </button>
-        <button
-          onClick={() => setIsCloneMode && setIsCloneMode(true)}
-          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${isCloneMode ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          克隆音色
-        </button>
       </div>
 
       {!isCloneMode ? (
         <>
-          {/* Filters */}
-          <div className="flex items-center space-x-2 pb-2">
-            {['全部', '新闻播报', '影视解说', '有声书', '二次元'].map((tag, i) => (
-              <button key={i} className={`text-xs px-3 py-1 rounded-full border transition-colors ${i === 0 ? 'bg-primary-600 border-primary-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'}`}>
-                {tag}
-              </button>
-            ))}
-          </div>
-
           {/* Voice List */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             {VOICES.map((voice) => {
               const isSelected = selectedVoiceId === voice.id;
               return (
@@ -459,7 +444,7 @@ const Step3Voice: React.FC<Step3Props> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                <div className="w-1 h-4 bg-primary-500 rounded-full"></div>
                 情感风格
               </label>
             </div>
@@ -482,14 +467,14 @@ const Step3Voice: React.FC<Step3Props> = ({
                     key={item.id}
                     onClick={() => setEmotionType && setEmotionType(item.id)}
                     className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${isActive
-                      ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm ring-1 ring-indigo-500'
+                      ? 'bg-primary-50 border-primary-500 text-primary-700 shadow-sm ring-1 ring-primary-500'
                       : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                   >
                     <span className="text-xl mb-1">{item.icon}</span>
                     <span className="text-xs font-medium">{item.label}</span>
                     {isActive && (
-                      <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                      <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary-500 rounded-full"></div>
                     )}
                   </button>
                 );
@@ -501,10 +486,10 @@ const Step3Voice: React.FC<Step3Props> = ({
           <div className="space-y-3 pt-2">
             <div className="flex justify-between items-center">
               <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
+                <div className="w-1 h-4 bg-primary-500 rounded-full"></div>
                 情感强度
               </label>
-              <span className="text-xs font-mono font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+              <span className="text-xs font-mono font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md">
                 {emotionAlpha?.toFixed(1)}
               </span>
             </div>
@@ -516,10 +501,10 @@ const Step3Voice: React.FC<Step3Props> = ({
                 step="0.1"
                 value={emotionAlpha || 1.0}
                 onChange={(e) => setEmotionAlpha && setEmotionAlpha(parseFloat(e.target.value))}
-                className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-purple-600 z-10 relative"
+                className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-primary-600 z-10 relative"
               />
               <div
-                className="absolute left-0 h-2 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-l-lg pointer-events-none"
+                className="absolute left-0 h-2 bg-gradient-to-r from-primary-400 to-primary-500 rounded-l-lg pointer-events-none"
                 style={{ width: `${((emotionAlpha || 0) / 2) * 100}%` }}
               ></div>
             </div>

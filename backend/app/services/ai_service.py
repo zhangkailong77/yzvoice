@@ -3,9 +3,10 @@ import requests
 import json
 import uuid
 import subprocess
-from gradio_client import Client, handle_file
+import time
 from app.core.config import settings
-from app.services.media_service import convert_mp3_to_wav
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 def call_stt_api(audio_path: str) -> str:
     if not audio_path or not os.path.exists(audio_path):
@@ -64,16 +65,16 @@ def call_tts_api(text: str, voice_name: str, speed: float, target_language_name:
     # We need to find if the input matches a value directly, or if it's a key.
     
     voice_id = None
-    
-    # Check if input is a value (ID) - This is what frontend sends
-    if voice_name in settings.MINIMAX_VOICES.values():
-        voice_id = voice_name
-    # Check if input is a key (Name)
-    elif voice_name in settings.MINIMAX_VOICES:
+
+    # Check if input is a key (display name) and map to official id first.
+    if voice_name in settings.MINIMAX_VOICES:
         voice_id = settings.MINIMAX_VOICES[voice_name]
-        
+    # Otherwise treat frontend input as voice_id directly.
+    elif isinstance(voice_name, str) and voice_name.strip():
+        voice_id = voice_name.strip()
+
     if not voice_id:
-        # Fallback to default
+        # Fallback to default when caller sends empty value.
         voice_id = "presenter_male"
     # The frontend sends the language name (e.g., "Thai"), but we need the value from the mapping (e.g., "Thai")
     # However, in the original code:
@@ -130,7 +131,11 @@ def call_tts_api(text: str, voice_name: str, speed: float, target_language_name:
         result_json = response.json()
         
         if result_json.get("base_resp", {}).get("status_code") != 0:
-            raise Exception(f"Minimax API Error: {result_json.get('base_resp', {}).get('status_msg')}")
+            base_resp = result_json.get("base_resp", {})
+            raise Exception(
+                f"Minimax API Error: status_code={base_resp.get('status_code')}, "
+                f"status_msg={base_resp.get('status_msg')}"
+            )
             
         hex_audio_data = result_json.get('data', {}).get('audio')
         if not hex_audio_data:
@@ -153,30 +158,144 @@ def call_lipsync_api(video_path: str, audio_path: str, guidance_scale: float, in
         raise ValueError("Video file not found")
     if not audio_path or not os.path.exists(audio_path):
         raise ValueError("Audio file not found")
-        
-    # Convert mp3 to wav for lipsync compatibility
-    wav_path = convert_mp3_to_wav(audio_path)
-    
-    print(f"Calling LipSync API: Video={video_path}, Audio={wav_path}")
-    
-    try:
-        client = Client(settings.LIPSYNC_API_URL)
-        result = client.predict(
-            video_path={"video": handle_file(video_path)},
-            audio_path=handle_file(wav_path),
-            guidance_scale=guidance_scale,
-            inference_steps=inference_steps,
-            seed=seed,
-            api_name="/process_video",
+    if not settings.PIXVERSE_API_KEY:
+        raise ValueError("PIXVERSE_API_KEY is not configured")
+
+    # PixVerse Speech(Lipsync) expects uploaded media IDs, then async task polling.
+    # We keep the existing function signature to avoid frontend/API contract changes.
+    def _build_retry_session() -> requests.Session:
+        retry = Retry(
+            total=settings.PIXVERSE_HTTP_RETRIES,
+            connect=settings.PIXVERSE_HTTP_RETRIES,
+            read=settings.PIXVERSE_HTTP_RETRIES,
+            status=settings.PIXVERSE_HTTP_RETRIES,
+            backoff_factor=settings.PIXVERSE_HTTP_BACKOFF_SECONDS,
+            status_forcelist=[408, 429, 500, 502, 503, 504],
+            allowed_methods=frozenset(["GET", "POST"]),
+            raise_on_status=False,
         )
-        
-        video_file_path = result.get('video')
-        if not video_file_path:
-            raise Exception("LipSync API returned no video file")
-            
-        return video_file_path
-    except Exception as e:
-        raise e
+        adapter = HTTPAdapter(max_retries=retry)
+        s = requests.Session()
+        s.mount("https://", adapter)
+        s.mount("http://", adapter)
+        return s
+
+    session = _build_retry_session()
+
+    def _headers() -> dict:
+        return {
+            "API-KEY": settings.PIXVERSE_API_KEY,
+            "Ai-Trace-Id": str(uuid.uuid4()),
+        }
+
+    def _extract_resp(data: dict) -> dict:
+        if not isinstance(data, dict):
+            raise Exception(f"Unexpected PixVerse response: {data}")
+
+        err_code = data.get("ErrCode")
+        if err_code not in (0, "0", None):
+            err_msg = data.get("ErrMsg") or data.get("Message") or "Unknown PixVerse error"
+            raise Exception(f"PixVerse API Error: {err_msg} (ErrCode={err_code})")
+
+        resp = data.get("Resp")
+        if not isinstance(resp, dict):
+            raise Exception(f"PixVerse response missing Resp: {data}")
+        return resp
+
+    def _parse_json_response(response: requests.Response, ctx: str) -> dict:
+        try:
+            data = response.json()
+        except Exception:
+            response.raise_for_status()
+            raise Exception(f"{ctx}: non-JSON response ({response.status_code})")
+
+        # Prefer business-level error detail from PixVerse payload.
+        if response.status_code >= 400:
+            err_code = data.get("ErrCode")
+            err_msg = data.get("ErrMsg") or data.get("Message") or response.text
+            if err_code in (500020, "500020"):
+                raise PermissionError("PixVerse Speech(LipSync) capability is not authorized for this API key (ErrCode=500020)")
+            raise Exception(f"{ctx}: {err_msg} (http={response.status_code}, err_code={err_code})")
+        return data
+
+    def _upload_media(file_path: str) -> int:
+        url = f"{settings.PIXVERSE_API_BASE_URL}/openapi/v2/media/upload"
+        with open(file_path, "rb") as f:
+            files = {"file": (os.path.basename(file_path), f, "application/octet-stream")}
+            response = session.post(url, headers=_headers(), files=files, timeout=180)
+        data = _parse_json_response(response, "PixVerse media upload failed")
+        resp = _extract_resp(data)
+        media_id = resp.get("media_id")
+        if not media_id:
+            raise Exception(f"PixVerse upload response missing media_id: {resp}")
+        return int(media_id)
+
+    def _generate_lipsync(video_media_id: int, audio_media_id: int) -> str:
+        url = f"{settings.PIXVERSE_API_BASE_URL}/openapi/v2/video/lip_sync/generate"
+        payload = {
+            "video_media_id": video_media_id,
+            "audio_media_id": audio_media_id,
+        }
+        response = session.post(url, headers=_headers(), json=payload, timeout=120)
+        data = _parse_json_response(response, "PixVerse lipsync generate failed")
+        resp = _extract_resp(data)
+        video_id = resp.get("video_id")
+        if not video_id:
+            raise Exception(f"PixVerse generate response missing video_id: {resp}")
+        return str(video_id)
+
+    def _poll_and_download(video_id: str) -> str:
+        url = f"{settings.PIXVERSE_API_BASE_URL}/openapi/v2/video/result/{video_id}"
+        deadline = time.time() + settings.PIXVERSE_POLL_TIMEOUT_SECONDS
+
+        while time.time() < deadline:
+            response = session.get(url, headers=_headers(), timeout=60)
+            data = _parse_json_response(response, "PixVerse result poll failed")
+            resp = _extract_resp(data)
+
+            raw_status = resp.get("status")
+            try:
+                status = int(raw_status)
+            except (TypeError, ValueError):
+                status = raw_status
+
+            # PixVerse docs: status changes from 5 -> 1 for successful completion.
+            if status == 1:
+                output_url = resp.get("url")
+                if not output_url:
+                    raise Exception(f"PixVerse result ready but missing url: {resp}")
+
+                output_name = f"lipsync_{uuid.uuid4()}.mp4"
+                output_path = os.path.join(settings.TEMP_DIR, output_name)
+                download_resp = session.get(output_url, timeout=300)
+                download_resp.raise_for_status()
+                with open(output_path, "wb") as f:
+                    f.write(download_resp.content)
+                return output_path
+
+            # Keep polling while the task is still pending/processing.
+            if status in (0, 2, 3, 5):
+                time.sleep(settings.PIXVERSE_POLL_INTERVAL_SECONDS)
+                continue
+
+            # Fail fast on terminal non-success states.
+            if status in (4, 6, 7, 8, 9):
+                err_msg = resp.get("fail_msg") or resp.get("message") or "Lipsync task failed"
+                raise Exception(f"PixVerse Lipsync failed: {err_msg} (status={status})")
+
+            # Unknown status: keep polling but include this in timeout diagnostics.
+            time.sleep(settings.PIXVERSE_POLL_INTERVAL_SECONDS)
+
+        raise TimeoutError(f"PixVerse Lipsync timeout after {settings.PIXVERSE_POLL_TIMEOUT_SECONDS}s")
+
+    print(f"Calling PixVerse LipSync: Video={video_path}, Audio={audio_path}")
+    try:
+        video_media_id = _upload_media(video_path)
+        audio_media_id = _upload_media(audio_path)
+        task_video_id = _generate_lipsync(video_media_id, audio_media_id)
+        return _poll_and_download(task_video_id)
+    finally:
+        session.close()
 
 def call_indextts_api(text: str, ref_audio_path: str, speed: float = 1.0, emotion_type: str = None, emotion_alpha: float = None) -> str:
     if not text:
