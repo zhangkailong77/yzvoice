@@ -3,9 +3,17 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+ARG APT_MIRROR=mirrors.aliyun.com
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i "s|https://deb.debian.org|https://${APT_MIRROR}|g; s|http://deb.debian.org|http://${APT_MIRROR}|g; s|https://security.debian.org|https://${APT_MIRROR}|g; s|http://security.debian.org|http://${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -i "s|https://deb.debian.org|https://${APT_MIRROR}|g; s|http://deb.debian.org|http://${APT_MIRROR}|g; s|https://security.debian.org|https://${APT_MIRROR}|g; s|http://security.debian.org|http://${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ffmpeg; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
