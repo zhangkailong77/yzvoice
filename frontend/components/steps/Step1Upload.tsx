@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { UploadCloud, FileVideo, Loader2, Video, Camera, Square, CheckCircle2, RotateCcw } from 'lucide-react';
+import { UploadCloud, FileVideo, Loader2, Video, Camera, Square, CheckCircle2, RotateCcw, X } from 'lucide-react';
 
 interface Step1Props {
   onFileSelect: (file: File) => void;
+  onClearVideo: () => void;
   videoPreview: string | null;
   isProcessing: boolean;
   canAnalyze: boolean;
@@ -12,6 +13,7 @@ interface Step1Props {
 
 const Step1Upload: React.FC<Step1Props> = ({
   onFileSelect,
+  onClearVideo,
   videoPreview,
   isProcessing,
   canAnalyze,
@@ -20,8 +22,11 @@ const Step1Upload: React.FC<Step1Props> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const liveVideoRef = useRef<HTMLVideoElement>(null);
+  const recordedVideoRef = useRef<HTMLVideoElement>(null);
+  const uploadedPreviewRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const autoUseTriggeredRef = useRef(false);
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartAtRef = useRef<number>(0);
   const [dragActive, setDragActive] = useState(false);
@@ -31,6 +36,7 @@ const Step1Upload: React.FC<Step1Props> = ({
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const pickVideoConstraint = () => {
     return {
@@ -83,7 +89,9 @@ const Step1Upload: React.FC<Step1Props> = ({
 
   const openCamera = async () => {
     setCameraError(null);
+    setPreviewError(null);
     setRecordedFile(null);
+    autoUseTriggeredRef.current = false;
     if (recordedUrl) {
       URL.revokeObjectURL(recordedUrl);
       setRecordedUrl(null);
@@ -162,16 +170,12 @@ const Step1Upload: React.FC<Step1Props> = ({
     const safariCandidates = [
       'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
       'video/mp4',
-      'video/webm;codecs=vp8,opus',
-      'video/webm',
     ];
 
     const otherCandidates = [
       'video/webm;codecs=vp8,opus',
       'video/webm;codecs=vp9,opus',
       'video/webm',
-      'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
-      'video/mp4',
     ];
 
     const candidates = isSafari ? safariCandidates : otherCandidates;
@@ -216,11 +220,11 @@ const Step1Upload: React.FC<Step1Props> = ({
       }
 
       const chunkMime = chunksRef.current[0]?.type || '';
-      const finalMime = recorder.mimeType || mimeType || chunkMime || 'video/webm';
+      const finalMime = chunkMime || recorder.mimeType || mimeType || 'video/webm';
       const containerMime = finalMime.split(';')[0] || 'video/webm';
-      const blob = new Blob(chunksRef.current, { type: finalMime });
+      const blob = new Blob(chunksRef.current, { type: containerMime });
       const extension = containerMime.includes('mp4') ? 'mp4' : 'webm';
-      const file = new File([blob], `capture_${Date.now()}.${extension}`, { type: finalMime });
+      const file = new File([blob], `capture_${Date.now()}.${extension}`, { type: containerMime });
       const url = URL.createObjectURL(blob);
       const valid = await validateRecordedVideo(url);
       if (!valid.ok) {
@@ -241,8 +245,8 @@ const Step1Upload: React.FC<Step1Props> = ({
       stopStream();
     };
 
-    // Avoid tiny fragmented chunks: some browser/device combos can produce audio-only previews.
-    recorder.start(1000);
+    // Record as one final blob to avoid fragmented chunk merge issues on some browsers.
+    recorder.start();
     setRecording(true);
   };
 
@@ -256,6 +260,15 @@ const Step1Upload: React.FC<Step1Props> = ({
 
   const useRecordedVideo = () => {
     if (!recordedFile) return;
+    autoUseTriggeredRef.current = true;
+    onFileSelect(recordedFile);
+    setCameraOpen(false);
+  };
+
+  const fallbackToUploadedPreview = () => {
+    if (autoUseTriggeredRef.current || !recordedFile) return;
+    autoUseTriggeredRef.current = true;
+    setCameraError('本地预览兼容性问题，已自动使用该视频继续。');
     onFileSelect(recordedFile);
     setCameraOpen(false);
   };
@@ -290,6 +303,22 @@ const Step1Upload: React.FC<Step1Props> = ({
   }, [cameraOpen]);
 
   useEffect(() => {
+    if (!cameraOpen || !recordedUrl || !recordedFile) return;
+
+    const timer = window.setTimeout(() => {
+      const videoEl = recordedVideoRef.current;
+      if (!videoEl) return;
+      const hasFrame = videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0;
+      const hasDuration = Number.isFinite(videoEl.duration) && videoEl.duration > 0.2;
+      if (!hasFrame || !hasDuration) {
+        fallbackToUploadedPreview();
+      }
+    }, 1600);
+
+    return () => window.clearTimeout(timer);
+  }, [cameraOpen, recordedUrl, recordedFile]);
+
+  useEffect(() => {
     if (!recording) return;
     const timer = window.setInterval(() => {
       setRecordingElapsedMs(Math.max(0, Date.now() - recordingStartAtRef.current));
@@ -311,6 +340,20 @@ const Step1Upload: React.FC<Step1Props> = ({
     };
   }, [recordedUrl]);
 
+  useEffect(() => {
+    if (!videoPreview || cameraOpen) return;
+    setPreviewError(null);
+    const videoEl = uploadedPreviewRef.current;
+    if (!videoEl) return;
+    videoEl.load();
+  }, [videoPreview, cameraOpen]);
+
+  useEffect(() => {
+    if (videoPreview) return;
+    setCameraError(null);
+    setPreviewError(null);
+  }, [videoPreview]);
+
   if (videoPreview) {
     return (
       // 使用 absolute 布局策略的核心容器
@@ -319,10 +362,21 @@ const Step1Upload: React.FC<Step1Props> = ({
 
         {/* 视频元素使用 absolute inset-0 强制填满容器，object-contain 保证画面完整显示且不变形 */}
         <video
+          key={videoPreview}
+          ref={uploadedPreviewRef}
           src={videoPreview}
           className="absolute inset-0 w-full h-full object-contain z-0"
+          playsInline
+          preload="metadata"
           controls
+          onError={() => setPreviewError('视频预览加载失败，请重新拍摄或上传。')}
         />
+
+        {previewError && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-3 py-1.5 rounded-full border border-white/10 max-w-[90%] text-center z-20">
+            {previewError}
+          </div>
+        )}
 
         {/* 加载遮罩层 */}
         {isProcessing && (
@@ -332,27 +386,19 @@ const Step1Upload: React.FC<Step1Props> = ({
           </div>
         )}
 
-        {/* 更换视频按钮 - 悬浮在右上角 */}
+        {/* 关闭视频按钮 - 悬浮在右上角 */}
         <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              openCamera();
+              setCameraError(null);
+              setPreviewError(null);
+              onClearVideo();
             }}
             className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full hover:scale-110 border border-white/10 shadow-lg"
-            title="拍摄视频"
+            title="关闭当前视频"
           >
-            <Camera className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              inputRef.current?.click();
-            }}
-            className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full hover:scale-110 border border-white/10 shadow-lg"
-            title="更换视频"
-          >
-            <UploadCloud className="w-4 h-4" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -382,7 +428,14 @@ const Step1Upload: React.FC<Step1Props> = ({
         {!recordedUrl ? (
           <video ref={liveVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         ) : (
-          <video src={recordedUrl} playsInline controls className="w-full h-full object-cover" />
+          <video
+            ref={recordedVideoRef}
+            src={recordedUrl}
+            playsInline
+            controls
+            onError={fallbackToUploadedPreview}
+            className="w-full h-full object-cover"
+          />
         )}
 
         <div className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full border border-white/10">

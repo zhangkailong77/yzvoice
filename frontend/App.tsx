@@ -124,11 +124,11 @@ const App: React.FC = () => {
   // --- Logic Handlers (Same logic, triggered from different UI points) ---
 
   const handleFileUpload = async (file: File) => {
-    const url = URL.createObjectURL(file);
+    const localPreviewUrl = URL.createObjectURL(file);
     setState(s => ({
       ...s,
       videoFile: file,
-      videoPreviewUrl: url,
+      videoPreviewUrl: localPreviewUrl,
       isProcessing: true,
       processingStage: '正在上传视频...',
       serverVideoPath: undefined,
@@ -142,8 +142,20 @@ const App: React.FC = () => {
     try {
       // 1. Upload Video
       const uploadRes = await api.uploadVideo(file);
+      const serverPreviewUrl = api.getFileUrl(uploadRes.file_path);
+
+      if (serverPreviewUrl && localPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(localPreviewUrl);
+      }
+
       setBaseVideoPathForRender(uploadRes.file_path);
-      setState(s => ({ ...s, serverVideoPath: uploadRes.file_path, processingStage: '', isProcessing: false }));
+      setState(s => ({
+        ...s,
+        serverVideoPath: uploadRes.file_path,
+        videoPreviewUrl: serverPreviewUrl || s.videoPreviewUrl,
+        processingStage: '',
+        isProcessing: false
+      }));
       setToast({ msg: '视频上传成功', type: 'success' });
     } catch (error) {
       console.error(error);
@@ -157,6 +169,29 @@ const App: React.FC = () => {
       setToast({ msg: errMsg, type: 'error' });
       setState(s => ({ ...s, isProcessing: false, processingStage: '' }));
     }
+  };
+
+  const handleClearVideo = () => {
+    setBaseVideoPathForRender(null);
+    setState(s => {
+      if (s.videoPreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(s.videoPreviewUrl);
+      }
+      return {
+        ...s,
+        videoFile: null,
+        videoPreviewUrl: null,
+        serverVideoPath: undefined,
+        sourceText: '',
+        translatedText: '',
+        generatedAudioUrl: null,
+        serverTTSAudioPath: undefined,
+        finalVideoUrl: null,
+        processingStage: '',
+        isProcessing: false,
+      };
+    });
+    setToast({ msg: '已清除当前视频，请重新上传或拍摄', type: 'info' });
   };
 
   const handleAnalyzeVideo = async () => {
@@ -437,6 +472,7 @@ const App: React.FC = () => {
                     <SectionCard title="1. 视频源" icon={Video} className="h-full">
                       <Step1Upload
                         onFileSelect={handleFileUpload}
+                        onClearVideo={handleClearVideo}
                         videoPreview={state.videoPreviewUrl}
                         isProcessing={isStep1Processing}
                         canAnalyze={canAnalyzeVideo}
