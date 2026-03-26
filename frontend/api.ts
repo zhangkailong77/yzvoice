@@ -7,6 +7,18 @@ const API_ORIGIN =
 const API_BASE_URL = `${API_ORIGIN}/api/v1`;
 const FILE_BASE_URL = `${API_ORIGIN}/files`;
 
+const extractFilename = (value: string) => {
+    if (!value) return '';
+    try {
+        const parsed = new URL(value, window.location.origin);
+        const rawName = parsed.pathname.split('/').pop() || '';
+        return decodeURIComponent(rawName);
+    } catch {
+        const rawName = value.split(/[/\\]/).pop() || '';
+        return decodeURIComponent(rawName);
+    }
+};
+
 export const api = {
     uploadVideo: async (file: File) => {
         const formData = new FormData();
@@ -65,6 +77,15 @@ export const api = {
             seed: seed
         });
         return response.data; // { video_path }
+    },
+
+    deleteProjectVideo: async (videoUrl: string) => {
+        const fileName = extractFilename(videoUrl);
+        if (!fileName) throw new Error('无效的视频地址，无法提取文件名');
+        const response = await axios.post(`${API_BASE_URL}/delete-file`, {
+            file_name: fileName
+        });
+        return response.data; // { deleted, file_name }
     },
 
     getFileUrl: (filePath: string) => {

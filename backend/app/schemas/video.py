@@ -31,3 +31,12 @@ class LipSyncRequest(BaseModel):
 
 class LipSyncResponse(BaseModel):
     video_path: str
+
+
+class DeleteFileRequest(BaseModel):
+    file_name: str
+
+
+class DeleteFileResponse(BaseModel):
+    deleted: bool
+    file_name: str

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings, Video, Layout, Music, Languages,
-  User, LifeBuoy, Sparkles, FolderOpen, Key
+  User, LifeBuoy, Sparkles, FolderOpen, Key, Trash2
 } from 'lucide-react';
 import { AppState, ProcessingLog } from './types';
 import { VOICES, PROCESSING_STEPS, LANGUAGES } from './constants';
@@ -346,6 +346,29 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = async (project: ProjectItem): Promise<boolean> => {
+    try {
+      await api.deleteProjectVideo(project.videoUrl);
+      setProjects(prev => {
+        const next = prev.filter(item => item.id !== project.id);
+        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+      if (activeProjectId === project.id) {
+        setActiveProjectId(null);
+      }
+      setToast({ msg: '项目视频已删除', type: 'success' });
+      return true;
+    } catch (error) {
+      console.error(error);
+      const detail = axios.isAxiosError(error)
+        ? error.response?.data?.detail || error.message
+        : (error instanceof Error ? error.message : '删除失败');
+      setToast({ msg: `删除失败：${detail}`, type: 'error' });
+      return false;
+    }
+  };
+
   if (loading) return <LoadingScreen onComplete={() => setLoading(false)} />;
 
   const isStep1Processing =
@@ -458,7 +481,7 @@ const App: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-gray-50/50">
               <div className="max-w-[1800px] mx-auto space-y-6 pb-20">
                 {activeView === 'projects' ? (
-                  <ProjectsWall projects={projects} />
+                  <ProjectsWall projects={projects} onDeleteProject={handleDeleteProject} />
                 ) : (
                   <>
     
@@ -571,7 +594,13 @@ const SectionCard = ({ title, icon: Icon, children, className, accent }: any) =>
   </div>
 );
 
-const ProjectsWall = ({ projects }: { projects: ProjectItem[] }) => {
+const ProjectsWall = ({
+  projects,
+  onDeleteProject,
+}: {
+  projects: ProjectItem[];
+  onDeleteProject: (project: ProjectItem) => Promise<boolean>;
+}) => {
   const [previewProject, setPreviewProject] = useState<ProjectItem | null>(null);
   const formatTime = (ts: number) =>
     new Date(ts).toLocaleString('zh-CN', {
@@ -597,18 +626,39 @@ const ProjectsWall = ({ projects }: { projects: ProjectItem[] }) => {
 
         <div className="flex flex-wrap gap-6">
           {projects.map((project) => (
-            <button
+            <div
               key={project.id}
-              onClick={() => setPreviewProject(project)}
-              className="group text-left w-[250px] flex-shrink-0"
+              className="group text-left w-[250px] flex-shrink-0 relative"
             >
-              <div className="text-[15px] font-medium text-gray-700 mb-2">{formatTime(project.createdAt)}</div>
-              <div className="w-[250px] h-[250px] bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 group-hover:border-primary-400 group-hover:shadow-soft">
-                <div className="w-full h-full bg-[#0a1320] overflow-hidden">
-                  <video src={project.videoUrl} className="w-full h-full object-contain" muted preload="metadata" />
+              <button
+                type="button"
+                onClick={() => setPreviewProject(project)}
+                className="w-full text-left"
+              >
+                <div className="text-[15px] font-medium text-gray-700 mb-2">{formatTime(project.createdAt)}</div>
+                <div className="w-[250px] h-[250px] bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 group-hover:border-primary-400 group-hover:shadow-soft">
+                  <div className="w-full h-full bg-[#0a1320] overflow-hidden">
+                    <video src={project.videoUrl} className="w-full h-full object-contain" muted preload="metadata" />
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={async (e) => {
+                  // Prevent opening preview modal when deleting.
+                  e.stopPropagation();
+                  const confirmed = window.confirm('确认删除该视频吗？删除后无法恢复。');
+                  if (!confirmed) return;
+                  const ok = await onDeleteProject(project);
+                  if (ok && previewProject?.id === project.id) {
+                    setPreviewProject(null);
+                  }
+                }}
+                className="absolute right-3 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/55 text-white shadow-lg opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 hover:bg-red-500"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -621,13 +671,28 @@ const ProjectsWall = ({ projects }: { projects: ProjectItem[] }) => {
                 <div className="text-lg font-semibold text-gray-900">视频预览</div>
                 <div className="text-sm text-gray-500 mt-0.5">{formatTime(previewProject.createdAt)}</div>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreviewProject(null)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors"
-              >
-                关闭
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const confirmed = window.confirm('确认删除该视频吗？删除后无法恢复。');
+                    if (!confirmed) return;
+                    const ok = await onDeleteProject(previewProject);
+                    if (ok) setPreviewProject(null);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors inline-flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  删除
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewProject(null)}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
             </div>
             <div className="p-6">
               <video

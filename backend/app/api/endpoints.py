@@ -2,7 +2,8 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from app.schemas.video import (
     STTResponse, TranslationRequest, TranslationResponse, 
-    TTSRequest, TTSResponse, LipSyncRequest, LipSyncResponse
+    TTSRequest, TTSResponse, LipSyncRequest, LipSyncResponse,
+    DeleteFileRequest, DeleteFileResponse
 )
 from app.services.media_service import extract_audio_from_video, convert_mp3_to_wav, normalize_video_to_mp4
 from app.services.ai_service import (
@@ -119,3 +120,31 @@ async def generate_lipsync(request: LipSyncRequest):
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/delete-file", response_model=DeleteFileResponse, summary="Delete a generated file")
+async def delete_generated_file(request: DeleteFileRequest):
+    file_name = (request.file_name or "").strip()
+    if not file_name:
+        raise HTTPException(status_code=400, detail="file_name is required")
+
+    safe_name = os.path.basename(file_name)
+    if safe_name != file_name:
+        raise HTTPException(status_code=400, detail="Invalid file_name")
+
+    temp_dir = os.path.abspath(settings.TEMP_DIR)
+    target_path = os.path.abspath(os.path.join(temp_dir, safe_name))
+    if not target_path.startswith(temp_dir + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    if not os.path.exists(target_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    if not os.path.isfile(target_path):
+        raise HTTPException(status_code=400, detail="Target is not a file")
+
+    try:
+        os.remove(target_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
+
+    return DeleteFileResponse(deleted=True, file_name=safe_name)
