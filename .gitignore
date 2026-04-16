@@ -18,3 +18,4 @@ backend/.env
 deploy/certs/*.pem
 deploy/certs/*.key
 deploy/certs/*.crt
+.omx/
